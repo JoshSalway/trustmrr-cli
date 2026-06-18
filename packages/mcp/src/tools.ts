@@ -173,8 +173,16 @@ export function registerTools(server: McpServer, client: TrustMrrClient): void {
     },
     async ({ slug }) => {
       try {
-        const res = await client.get<StartupDetail>(`/startups/${encodeURIComponent(slug)}`);
-        return jsonResult(enrich(res));
+        // The detail endpoint wraps the startup under a `data` key
+        // ({ data: {...} }), unlike list rows which are bare. Unwrap before enriching.
+        const res = await client.get<{ data?: StartupDetail } | StartupDetail>(
+          `/startups/${encodeURIComponent(slug)}`,
+        );
+        const startup =
+          res && typeof res === "object" && "data" in res && res.data
+            ? (res.data as StartupDetail)
+            : (res as StartupDetail);
+        return jsonResult(enrich(startup));
       } catch (err) {
         return errorResult(err);
       }
