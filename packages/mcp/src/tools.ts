@@ -6,8 +6,13 @@ import { TrustMrrError } from "./http.js";
 import { CATEGORIES, type ListResponse, SORTS, type StartupDetail } from "./types.js";
 
 /**
- * Shared filter shape for GET /startups. MONEY INPUTS ARE USD CENTS.
+ * Shared filter shape for GET /startups. MONEY INPUTS ARE WHOLE US DOLLARS (not cents).
  * Revenue filters operate on the LAST-30-DAYS figure (not weekly, not MRR).
+ *
+ * MONEY UNIT (verified against trustmrr.com on 2026-06-18): all money fields and
+ * filters are whole US dollars. The site renders the raw `last30Days` integer as
+ * dollars — `550024` shows as "$550,024/month", NOT "$5,500.24". An earlier build
+ * wrongly assumed cents and was off by 100x.
  *
  * GROWTH UNIT (resolved by a live probe on 2026-06-18 — see scripts/probe.ts):
  *   The response fields `growth30d` / `growthMRR30d` are PLAIN PERCENTAGE NUMBERS,
@@ -43,17 +48,21 @@ const filterShape = {
     .int()
     .optional()
     .describe(
-      "Minimum LAST-30-DAYS revenue in USD CENTS (e.g. 428571 = $4,285.71/30d ≈ $1,000/week).",
+      "Minimum LAST-30-DAYS revenue in WHOLE US DOLLARS (e.g. 4286 = $4,286/30d ≈ $1,000/week).",
     ),
-  maxRevenue: z.number().int().optional().describe("Maximum LAST-30-DAYS revenue in USD CENTS."),
+  maxRevenue: z
+    .number()
+    .int()
+    .optional()
+    .describe("Maximum LAST-30-DAYS revenue in WHOLE US DOLLARS."),
   minMrr: z
     .number()
     .int()
     .optional()
     .describe(
-      "Minimum MRR in USD CENTS. MRR is recurring revenue only; one-time-payment products have mrr=0.",
+      "Minimum MRR in WHOLE US DOLLARS. MRR is recurring revenue only; one-time-payment products have mrr=0.",
     ),
-  maxMrr: z.number().int().optional().describe("Maximum MRR in USD CENTS."),
+  maxMrr: z.number().int().optional().describe("Maximum MRR in WHOLE US DOLLARS."),
   minGrowth: z
     .number()
     .optional()
@@ -64,8 +73,8 @@ const filterShape = {
     .number()
     .optional()
     .describe("Maximum 30-day revenue growth as a PERCENTAGE NUMBER (10 = +10%)."),
-  minPrice: z.number().int().optional().describe("Minimum asking price in USD CENTS."),
-  maxPrice: z.number().int().optional().describe("Maximum asking price in USD CENTS."),
+  minPrice: z.number().int().optional().describe("Minimum asking price in WHOLE US DOLLARS."),
+  maxPrice: z.number().int().optional().describe("Maximum asking price in WHOLE US DOLLARS."),
 };
 
 const searchShape = {
@@ -141,12 +150,13 @@ export function registerTools(server: McpServer, client: TrustMrrClient): void {
       title: "Search TrustMRR startups",
       description:
         "List and filter Stripe/processor-verified startups from TrustMRR (GET /startups). " +
-        "IMPORTANT CONVENTIONS: all money inputs are USD CENTS (42500 = $425.00); revenue filters " +
-        "(minRevenue/maxRevenue) operate on the LAST-30-DAYS figure, not weekly and not MRR. To filter " +
-        "by '$X per week', convert: cents = X * (30/7) * 100. MRR is a separate axis (minMrr/maxMrr); " +
-        "many high-revenue listings are one-time-payment products with mrr=0. Each returned startup " +
-        "includes a `derived` block with weeklyRevenueUSD, monthlyRevenueUSD, totalRevenueUSD, mrrUSD, " +
-        "and askingPriceUSD for convenience. Returns { data, meta:{ total, page, limit, hasMore } }.",
+        "IMPORTANT CONVENTIONS: all money inputs/fields are WHOLE US DOLLARS, not cents (last30Days=550024 " +
+        "means $550,024). Revenue filters (minRevenue/maxRevenue) operate on the LAST-30-DAYS figure, not " +
+        "weekly and not MRR. To filter by '$X per week', convert: dollars = X * (30/7) (e.g. $1,000/week " +
+        "-> minRevenue=4286). MRR is a separate axis (minMrr/maxMrr); many high-revenue listings are " +
+        "one-time-payment products with mrr=0. Each returned startup includes a `derived` block with " +
+        "weeklyRevenueUSD, monthlyRevenueUSD, totalRevenueUSD, mrrUSD, and askingPriceUSD for convenience. " +
+        "Returns { data, meta:{ total, page, limit, hasMore } }.",
       inputSchema: searchShape,
     },
     async (args) => {
@@ -196,7 +206,7 @@ export function registerTools(server: McpServer, client: TrustMrrClient): void {
       description:
         "Convenience tool for 'find every app that…' questions. Paginates GET /startups at limit=50 until " +
         "hasMore=false or maxResults is reached, throttled by the shared rate limiter. Same filters/conventions " +
-        "as search_startups (money = USD CENTS, revenue = last-30-days). Returns { data, total, fetched, " +
+        "as search_startups (money = WHOLE US DOLLARS, revenue = last-30-days). Returns { data, total, fetched, " +
         "truncated } where `truncated` is true if the maxResults cap stopped pagination early. Prefer this over " +
         "hand-rolling pagination, but keep maxResults modest to protect the 20 req/min budget.",
       inputSchema: {
