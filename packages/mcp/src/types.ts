@@ -53,9 +53,9 @@ export const SORTS = [
 export type Sort = (typeof SORTS)[number];
 
 export interface Revenue {
-  last30Days: number | null; // USD cents
-  mrr: number | null; // USD cents
-  total: number | null; // USD cents
+  last30Days: number | null; // USD (whole dollars, not cents)
+  mrr: number | null; // USD (whole dollars, not cents)
+  total: number | null; // USD (whole dollars, not cents)
 }
 
 /** Shape returned in GET /startups list rows. */
@@ -73,7 +73,7 @@ export interface StartupListItem {
   revenue?: Revenue | null;
   customers?: number | null;
   activeSubscriptions?: number | null;
-  askingPrice?: number | null; // USD cents
+  askingPrice?: number | null; // USD (whole dollars, not cents)
   profitMarginLast30Days?: number | null;
   growth30d?: number | null;
   growthMRR30d?: number | null;
@@ -119,15 +119,15 @@ export interface ListResponse {
 
 /** Derived USD figures we attach to every startup so weekly/monthly framing maps cleanly. */
 export interface DerivedRevenue {
-  /** last30Days converted to a per-week USD figure (last30Days/100 * 7/30). */
+  /** last30Days converted to a per-week USD figure (last30Days * 7/30). */
   weeklyRevenueUSD: number | null;
-  /** last30Days as a monthly USD figure (last30Days/100). */
+  /** last30Days as a monthly USD figure (= last30Days; values are already dollars). */
   monthlyRevenueUSD: number | null;
-  /** total lifetime revenue in USD (revenue.total/100). */
+  /** total lifetime revenue in USD (= revenue.total). */
   totalRevenueUSD: number | null;
-  /** MRR in USD (revenue.mrr/100). */
+  /** MRR in USD (= revenue.mrr). */
   mrrUSD: number | null;
-  /** asking price in USD (askingPrice/100), if listed for sale. */
+  /** asking price in USD (= askingPrice), if listed for sale. */
   askingPriceUSD: number | null;
 }
 

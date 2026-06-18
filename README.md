@@ -102,10 +102,10 @@ Plain text is treated as a question. Within a REPL session, follow-ups continue 
 
 ## Key conventions (baked into the MCP tools + system prompt)
 
-- **All money is USD cents.** `42500` = $425.00.
-- **Revenue filters operate on the LAST-30-DAYS figure.** A "$X per week" question converts as `cents = X * (30/7) * 100` (e.g. $1000–$2000/wk → `minRevenue=428571`, `maxRevenue=857143`).
+- **All money is WHOLE US DOLLARS, not cents.** `550024` = $550,024 (verified against trustmrr.com, which renders `last30Days=550024` as "$550,024/month").
+- **Revenue filters operate on the LAST-30-DAYS figure.** A "$X per week" question converts as `dollars = X * (30/7)` (e.g. $1000–$2000/wk → `minRevenue=4286`, `maxRevenue=8571`).
 - **MRR is a separate axis.** Many high-revenue listings are one-time-payment products with `mrr=0`.
-- **`growth30d` and `minGrowth`/`maxGrowth` are decimals** (`0.12` = +12%). See the note in `packages/mcp/src/tools.ts`.
+- **`growth30d` and `minGrowth`/`maxGrowth` are percentage numbers** (`24` = +24%, `-7.6` = −7.6%; use `minGrowth=10` for ">10%"). See the note in `packages/mcp/src/tools.ts`.
 - **Listing bias:** revenue is processor-verified and real, but the dataset only contains founders who opted in — a curated showcase, not a representative sample. The system prompt always caveats generalisations.
 
 Every startup returned by the tools includes a `derived` block (`weeklyRevenueUSD`, `monthlyRevenueUSD`, `totalRevenueUSD`, `mrrUSD`, `askingPriceUSD`) so weekly/monthly-framed questions map cleanly.
