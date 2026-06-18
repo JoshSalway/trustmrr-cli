@@ -1,19 +1,41 @@
 {
   "name": "trustmrr-mcp",
   "version": "0.1.0",
-  "description": "Standalone stdio MCP server wrapping the TrustMRR verified-revenue REST API",
+  "description": "Unofficial standalone stdio MCP server wrapping the TrustMRR verified-revenue REST API",
   "type": "module",
+  "license": "MIT",
+  "author": "Josh Salway",
+  "homepage": "https://github.com/JoshSalway/trustmrr-cli/tree/main/packages/mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshSalway/trustmrr-cli.git",
+    "directory": "packages/mcp"
+  },
+  "bugs": { "url": "https://github.com/JoshSalway/trustmrr-cli/issues" },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "trustmrr",
+    "startups",
+    "revenue",
+    "mrr",
+    "saas",
+    "claude",
+    "cursor"
+  ],
+  "engines": { "node": ">=20" },
   "bin": {
     "trustmrr-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
-  "files": ["dist"],
+  "files": ["dist", "README.md"],
   "scripts": {
     "build": "tsup",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "probe": "tsx src/scripts/probe.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

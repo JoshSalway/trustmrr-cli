@@ -1,6 +1,8 @@
 # trustmrr-cli + trustmrr-mcp
 
-A private, local-first toolkit for asking natural-language questions about **verified startup revenue** from [TrustMRR](https://trustmrr.com) and getting synthesised answers.
+> **Unofficial.** This is an independent, community-built client. It is **not affiliated with, endorsed by, or operated by TrustMRR.** It calls the public TrustMRR REST API using **your own** API key. "TrustMRR" is used only to describe what the tool talks to. TrustMRR publishes its own official MCP server (`trustmrr-mcp` on npm / [`AiToolsforStartups/trustmrr-mcp`](https://github.com/AiToolsforStartups/trustmrr-mcp)); this project differs by bundling a subscription-billed **CLI/REPL** plus extra MCP conveniences (derived weekly/monthly USD fields, auto-paginating `find_all_matching`).
+
+A local-first toolkit for asking natural-language questions about **verified startup revenue** from [TrustMRR](https://trustmrr.com) and getting synthesised answers.
 
 The brain is **your own Claude subscription** (driven via the locally-installed `claude` CLI in print mode), so questions are billed to your Claude plan, not API credits. The data comes from the TrustMRR REST API, exposed as a standalone MCP server.
 
@@ -153,4 +155,4 @@ The MCP server is independent of the CLI. To use it in Claude Desktop / Cursor /
 
 ## License
 
-Private. Not for distribution.
+[MIT](LICENSE) © Josh Salway. Unofficial; not affiliated with TrustMRR. You are responsible for using the TrustMRR API in accordance with TrustMRR's own terms of service.
