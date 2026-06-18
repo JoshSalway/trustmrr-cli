@@ -1,20 +1,45 @@
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { TrustMrrClient } from "./http.js";
 import { registerTools } from "./tools.js";
 
 /**
+ * Resolve the API key from TRUSTMRR_API_KEY, falling back to the CLI's config
+ * file (~/.trustmrr-cli/config.json). The fallback lets this server be attached
+ * to any MCP client (Claude Code/Desktop/Cursor) WITHOUT putting the key in the
+ * MCP config — it reuses the one chmod-600 file. The key is never logged.
+ */
+function resolveApiKey(): string | undefined {
+  const fromEnv = process.env.TRUSTMRR_API_KEY?.trim();
+  if (fromEnv) return fromEnv;
+  try {
+    const raw = readFileSync(join(homedir(), ".trustmrr-cli", "config.json"), "utf8");
+    try {
+      return (JSON.parse(raw) as { apiKey?: string }).apiKey?.trim();
+    } catch {
+      // Tolerate a bare-key file (key pasted directly, not as JSON).
+      return raw.match(/tmrr_[A-Za-z0-9_-]+/)?.[0];
+    }
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * trustmrr-mcp — stdio MCP server wrapping the TrustMRR REST API.
  *
  * stdout is reserved for the MCP JSON-RPC stream, so every diagnostic goes to
- * stderr. The API key is read from TRUSTMRR_API_KEY and is never logged.
+ * stderr. The API key is never logged.
  */
 async function main(): Promise<void> {
-  const apiKey = process.env.TRUSTMRR_API_KEY?.trim();
+  const apiKey = resolveApiKey();
 
   if (!apiKey) {
     process.stderr.write(
-      "trustmrr-mcp: TRUSTMRR_API_KEY is not set. Provide a TrustMRR key (starts with 'tmrr_') in the environment.\n",
+      "trustmrr-mcp: no TrustMRR key found. Set TRUSTMRR_API_KEY (starts with 'tmrr_') or store it in ~/.trustmrr-cli/config.json.\n",
     );
     process.exit(1);
   }
