@@ -1,0 +1,27 @@
+{
+  "name": "trustmrr-cli",
+  "version": "0.1.0",
+  "description": "Interactive REPL that asks natural-language questions about TrustMRR data via your Claude subscription",
+  "type": "module",
+  "bin": {
+    "trustmrr": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": ["dist", "system-prompt.md"],
+  "scripts": {
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "trustmrr-mcp": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

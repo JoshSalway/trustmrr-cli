@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# secrets
+.env
+.env.local
+.env.*.local
+
+# generated MCP config may contain the API key — never commit
+.mcp.json
+**/.mcp.json
+mcp.json
+
+# os
+.DS_Store
+*.log
