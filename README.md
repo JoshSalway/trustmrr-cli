@@ -1,158 +1,340 @@
-# trustmrr-cli + trustmrr-mcp
+# trustmrr-cli
 
-> **Unofficial.** This is an independent, community-built client. It is **not affiliated with, endorsed by, or operated by TrustMRR.** It calls the public TrustMRR REST API using **your own** API key. "TrustMRR" is used only to describe what the tool talks to. TrustMRR publishes its own official MCP server (`trustmrr-mcp` on npm / [`AiToolsforStartups/trustmrr-mcp`](https://github.com/AiToolsforStartups/trustmrr-mcp)); this project differs by bundling a subscription-billed **CLI/REPL** plus extra MCP conveniences (derived weekly/monthly USD fields, auto-paginating `find_all_matching`).
+> **Unofficial.** Independent, community-built tooling for TrustMRR data. Not affiliated with, endorsed by, or operated by TrustMRR. It calls the TrustMRR REST API with your own API key. TrustMRR publishes its own official MCP package as `trustmrr-mcp`; this project uses scoped package names to avoid confusion.
 
-A local-first toolkit for asking natural-language questions about **verified startup revenue** from [TrustMRR](https://trustmrr.com) and getting synthesised answers.
+Ask natural-language questions about [TrustMRR](https://trustmrr.com) verified-revenue data from your terminal, using your existing Claude subscription. Or install only the local stdio MCP server and connect it to any MCP-capable client.
 
-The brain is **your own Claude subscription** (driven via the locally-installed `claude` CLI in print mode), so questions are billed to your Claude plan, not API credits. The data comes from the TrustMRR REST API, exposed as a standalone MCP server.
+## Contents
 
-This is a pnpm monorepo with two packages:
+- [Quick Start](#quick-start)
+- [Why This Exists](#why-this-exists)
+- [Open and Auditable](#open-and-auditable)
+- [Packages](#packages)
+- [Requirements](#requirements)
+- [Key Handling](#key-handling)
+- [CLI Usage](#cli-usage)
+- [MCP Usage](#mcp-usage)
+- [Native MCP Binary](#native-mcp-binary)
+- [Binary Cost](#binary-cost)
+- [Source Development](#source-development)
+- [Data Conventions](#data-conventions)
+- [Local Files](#local-files)
 
-| Package | What it is |
-|---|---|
-| [`packages/mcp`](packages/mcp) — **`trustmrr-mcp`** | A standalone stdio MCP server wrapping the TrustMRR REST API. Reusable anywhere an MCP client runs (Claude Code, Claude Desktop, Cursor). |
-| [`packages/cli`](packages/cli) — **`trustmrr-cli`** | An interactive REPL that orchestrates `claude -p` with the MCP server attached, persists conversations locally, and pretty-prints answers. |
+## Quick Start
 
----
-
-## Prerequisites
-
-- **Node.js 20+** (tested on Node 24).
-- **pnpm** (`npm i -g pnpm`).
-- An **authenticated `claude` CLI** on your `PATH` — install [Claude Code](https://docs.claude.com/en/docs/claude-code) and sign in. The REPL shells out to it, so answers bill to your Claude subscription.
-- A **TrustMRR API key** (starts with `tmrr_`). Get one at trustmrr.com → API keys.
-
-## Install & build
-
-```bash
-pnpm install
-pnpm build        # builds both packages (required before first run)
-```
-
-Optionally link the CLI globally so `trustmrr` is on your PATH:
+### Claude CLI/REPL
 
 ```bash
-cd packages/cli && pnpm link --global    # then run `trustmrr` anywhere
-```
-
-## Provide your TrustMRR API key
-
-Key precedence is **`--api-key` flag > `TRUSTMRR_API_KEY` env > `~/.trustmrr-cli/config.json`**. Pick one:
-
-```bash
-# 1. Store it once in the local config (chmod 600, lives outside the repo):
-node packages/cli/dist/index.js key tmrr_YOURKEY
-#    …or from inside the REPL:  /key tmrr_YOURKEY
-
-# 2. Or use an env var:
-export TRUSTMRR_API_KEY=tmrr_YOURKEY
-
-# 3. Or pass it per-invocation:
-trustmrr --api-key tmrr_YOURKEY
-```
-
-The key is never written to the repo, to conversation logs, or to stdout. The generated MCP config that carries it lives at `~/.trustmrr-cli/mcp.json` (chmod 600).
-
-## Usage
-
-```bash
-pnpm cli                      # start the interactive REPL
-# or, if linked globally:
+npm install -g @joshsalway/trustmrr-cli
+trustmrr key tmrr_YOURKEY
 trustmrr
 ```
 
-Example questions:
+Then ask:
 
-```
-trustmrr ❯ Show me success stories of apps making between $1000 and $2000 per week — what are they and what do they do?
-trustmrr ❯ Find SaaS apps growing fastest in the last 30 days and tell me their tech stacks.
-trustmrr ❯ What mobile apps are on TrustMRR and how do they monetise?
-trustmrr ❯ List the cheapest startups for sale under $10k with their multiples.
+```text
+trustmrr > Show me success stories of apps making between $1000 and $2000 per week.
+trustmrr > Of those, which ones have the clearest acquisition angle?
 ```
 
-One-shot (non-interactive) mode:
+One-shot mode:
 
 ```bash
 trustmrr ask "What are the highest-revenue one-time-payment products on TrustMRR?"
 ```
 
-### REPL commands
+### MCP-Only
+
+Use this path for Claude Code, Cursor, Codex environments that support stdio MCP servers, or any other MCP-capable client where you want the agent to call TrustMRR tools directly.
+
+```bash
+npm install -g @joshsalway/trustmrr-mcp
+```
+
+```json
+{
+  "mcpServers": {
+    "trustmrr": {
+      "command": "trustmrr-mcp",
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
+    }
+  }
+}
+```
+
+This path does not use `claude -p`; your MCP client or agent handles the reasoning.
+
+## Why This Exists
+
+There are already TrustMRR MCP servers. This project is useful when you want a local, inspectable workflow rather than only raw hosted tools.
+
+| Option | Best for | Tradeoff |
+|---|---|---|
+| Official/unscoped `trustmrr-mcp` | Canonical MCP package | MCP-only; no built-in Claude CLI conversation workflow |
+| Remote HTTP MCP servers | Quick setup in MCP clients | Your bearer token is sent to a hosted third-party MCP service; auditability depends on the hosted implementation |
+| Local stdio MCP servers | Keeping the TrustMRR key local | Answer synthesis and follow-up workflow still live in your client |
+| `@joshsalway/trustmrr-cli` | Local Claude-powered TrustMRR research from the terminal | Requires local `claude` CLI and a TrustMRR API key |
+| `@joshsalway/trustmrr-mcp` | Direct TrustMRR tools for Claude Code, Codex-capable MCP setups, Cursor, and other agents | MCP-only; no REPL, history, or Claude session resume |
+
+## Open and Auditable
+
+This project is designed to be easy to inspect before you trust it with an API key:
+
+- the MCP server runs locally over stdio by default
+- API keys are read from env or `~/.trustmrr-cli/config.json`
+- generated MCP config is written outside the repo with file mode `0600`
+- stdout is reserved for MCP JSON-RPC; diagnostics go to stderr
+- request code, rate limiting, tool schemas, and derived revenue logic are in this repository
+- npm packages include TypeScript `src/` files, not only compiled `dist/`
+- offline tests exercise the MCP server against a mocked TrustMRR API, without a real key
+- `TRUSTMRR_BASE_URL` is only for tests/development; if set to a non-TrustMRR host, the MCP server warns on stderr before sending requests
+
+Inspect the MCP package before installing or running it:
+
+```bash
+npm pack --dry-run @joshsalway/trustmrr-mcp
+npm pack @joshsalway/trustmrr-mcp
+tar -tf joshsalway-trustmrr-mcp-*.tgz
+```
+
+## Packages
+
+| Package | What it is |
+|---|---|
+| [`packages/cli`](packages/cli) / `@joshsalway/trustmrr-cli` | Interactive REPL that orchestrates `claude -p`, persists conversations locally, and pretty-prints tool calls. |
+| [`packages/mcp`](packages/mcp) / `@joshsalway/trustmrr-mcp` | Standalone local stdio MCP server wrapping the TrustMRR REST API. |
+
+## Requirements
+
+For either package:
+
+- Node.js 20+
+- a TrustMRR API key that starts with `tmrr_`
+
+For the `trustmrr` CLI/REPL:
+
+- an authenticated `claude` CLI on your `PATH`
+
+For source development:
+
+- pnpm 10+
+
+## Key Handling
+
+Key precedence is:
+
+1. `--api-key`
+2. `TRUSTMRR_API_KEY`
+3. `~/.trustmrr-cli/config.json`
+
+Store a key for the CLI:
+
+```bash
+trustmrr key tmrr_YOURKEY
+```
+
+For source checkouts before global linking:
+
+```bash
+node packages/cli/dist/index.js key tmrr_YOURKEY
+```
+
+The key is never written to the repo, to conversation logs, or to stdout. The generated MCP config that carries it lives at `~/.trustmrr-cli/mcp.json` with mode `0600`.
+
+## CLI Usage
+
+```bash
+trustmrr
+trustmrr ask "Which SaaS listings under $25k look underpriced?"
+```
+
+Example questions:
+
+```text
+Show me success stories of apps making between $1000 and $2000 per week.
+Find SaaS apps growing fastest in the last 30 days and tell me their tech stacks.
+What mobile apps are on TrustMRR and how do they monetise?
+List the cheapest startups for sale under $10k with their multiples.
+```
+
+REPL commands:
 
 | Command | Description |
 |---|---|
 | `/help` | Show commands |
-| `/new` | Start a fresh conversation (forgets prior context) |
+| `/new` | Start a fresh conversation |
 | `/resume <id>` | Reopen a past conversation by session id |
 | `/history` | List saved conversations |
-| `/key [tmrr_…]` | Set or rotate your TrustMRR API key |
-| `/quit` | Exit (also `/exit`, Ctrl-D) |
+| `/key [tmrr_...]` | Set or rotate your TrustMRR API key |
+| `/quit` | Exit, also `/exit` or Ctrl-D |
 
-Plain text is treated as a question. Within a REPL session, follow-ups continue the same Claude session (via `--resume`), so *"of those, which has the best margin?"* answers from the prior turn's set.
+Plain text is treated as a question. Follow-ups continue the same Claude session via `--resume`.
 
-## How it works
+## MCP Usage
 
-1. The REPL writes a `~/.trustmrr-cli/mcp.json` that launches `trustmrr-mcp` with your key injected into its environment.
-2. For each question it invokes:
-   ```
-   claude -p "<question>" \
-     --mcp-config ~/.trustmrr-cli/mcp.json --strict-mcp-config \
-     --allowedTools "mcp__trustmrr__search_startups,mcp__trustmrr__get_startup,mcp__trustmrr__find_all_matching" \
-     --append-system-prompt "<packages/cli/system-prompt.md>" \
-     --output-format stream-json --verbose [--resume <session-id>]
-   ```
-3. It parses the `stream-json` event feed: tool calls render as dim status lines (`→ searching startups…`); the final answer is printed; the exchange is saved.
+Install the MCP package:
 
-## Key conventions (baked into the MCP tools + system prompt)
-
-- **All money is WHOLE US DOLLARS, not cents.** `550024` = $550,024 (verified against trustmrr.com, which renders `last30Days=550024` as "$550,024/month").
-- **Revenue filters operate on the LAST-30-DAYS figure.** A "$X per week" question converts as `dollars = X * (30/7)` (e.g. $1000–$2000/wk → `minRevenue=4286`, `maxRevenue=8571`).
-- **MRR is a separate axis.** Many high-revenue listings are one-time-payment products with `mrr=0`.
-- **`growth30d` and `minGrowth`/`maxGrowth` are percentage numbers** (`24` = +24%, `-7.6` = −7.6%; use `minGrowth=10` for ">10%"). See the note in `packages/mcp/src/tools.ts`.
-- **Listing bias:** revenue is processor-verified and real, but the dataset only contains founders who opted in — a curated showcase, not a representative sample. The system prompt always caveats generalisations.
-
-Every startup returned by the tools includes a `derived` block (`weeklyRevenueUSD`, `monthlyRevenueUSD`, `totalRevenueUSD`, `mrrUSD`, `askingPriceUSD`) so weekly/monthly-framed questions map cleanly.
-
-## Local persistence
-
-```
-~/.trustmrr-cli/
-  config.json                 # { apiKey?, defaultEngine?, model? }  (chmod 600)
-  mcp.json                    # generated MCP config with the key     (chmod 600)
-  conversations/
-    index.json                # sessionId -> { title, createdAt, updatedAt, turnCount, file }
-    <timestamp>__<session-id>.jsonl   # one JSONL line per turn
+```bash
+npm install -g @joshsalway/trustmrr-mcp
 ```
 
-Conversation transcripts are human-readable and greppable. `claude`'s own session store powers `--resume`; the JSONL is the durable, portable record.
+Configure any stdio MCP client:
 
-## Scripts
+```json
+{
+  "mcpServers": {
+    "trustmrr": {
+      "command": "trustmrr-mcp",
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
+    }
+  }
+}
+```
 
-| Script | Description |
+The MCP server exposes:
+
+| Tool | Description |
 |---|---|
-| `pnpm dev` | Run the CLI from source via tsx |
-| `pnpm build` | Build both packages |
-| `pnpm typecheck` | Type-check both packages |
-| `pnpm cli` | Run the built CLI |
-| `pnpm mcp` | Run the MCP server standalone (for debugging / MCP inspector) |
-| `pnpm probe` | One-off live probe of the API (inspects headers + `growth30d` unit) |
-| `pnpm lint` / `pnpm format` | Biome lint / format |
+| `search_startups` | List, filter, sort, and paginate startups. |
+| `get_startup` | Fetch full detail for one startup by slug. |
+| `find_all_matching` | Auto-paginate a filter until exhausted or capped. |
 
-## Using `trustmrr-mcp` in other clients
+## Native MCP Binary
 
-The MCP server is independent of the CLI. To use it in Claude Desktop / Cursor / Claude Code, point an MCP config at the built server:
+Users can run the MCP server from a single downloaded executable instead of installing Node/npm.
+
+Download options:
+
+- Use GitHub Release assets once published.
+- Or run the manual **Build MCP Binaries** GitHub Actions workflow and download the uploaded artifact for your OS/CPU.
+
+Expected artifact names:
+
+```text
+trustmrr-mcp-darwin-arm64
+trustmrr-mcp-darwin-x64
+trustmrr-mcp-linux-x64
+trustmrr-mcp-win32-x64.exe
+SHA256SUMS.txt
+```
+
+On macOS/Linux, make it executable:
+
+```bash
+chmod +x trustmrr-mcp-darwin-arm64
+```
+
+Use the downloaded binary in MCP config:
+
+```json
+{
+  "mcpServers": {
+    "trustmrr": {
+      "command": "/absolute/path/to/trustmrr-mcp-darwin-arm64",
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
+    }
+  }
+}
+```
+
+To build a binary locally for the current OS/CPU:
+
+```bash
+pnpm binary:mcp
+```
+
+The output is written to:
+
+```text
+packages/mcp/dist-bin/trustmrr-mcp-<platform>-<arch>
+```
+
+The binary is built with Node's single-executable application support. It bundles the MCP server and a Node runtime, so it is larger than the npm package but does not require Node to be installed on the target machine. The binary build is optional; the npm package remains the default install path.
+
+## Binary Cost
+
+Measured locally on macOS arm64:
+
+```text
+Binary size:   51 MB
+Idle memory:   ~54 MB RSS
+Idle CPU:      0.0%
+```
+
+For comparison, running `node packages/mcp/dist/index.js` on the same machine was about `65 MB` RSS at idle. Actual memory varies by OS, Node version, architecture, and MCP client. CPU should be effectively zero while idle; network/API calls briefly use CPU and are dominated by TrustMRR network latency.
+
+## Source Development
+
+```bash
+pnpm install
+pnpm build
+pnpm verify
+```
+
+Run locally:
+
+```bash
+pnpm cli
+pnpm mcp
+```
+
+For a source checkout MCP config, build first and point the client at `dist/index.js`:
 
 ```json
 {
   "mcpServers": {
     "trustmrr": {
       "command": "node",
-      "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
-      "env": { "TRUSTMRR_API_KEY": "tmrr_YOURKEY" }
+      "args": ["/absolute/path/to/trustmrr-cli/packages/mcp/dist/index.js"],
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
     }
   }
 }
 ```
 
+Useful scripts:
+
+| Script | Description |
+|---|---|
+| `pnpm verify` | Full release gate: build, typecheck, tests, lint, safety check, audit, package dry-run |
+| `pnpm test` | Offline mocked MCP integration tests |
+| `pnpm binary:mcp` | Build a current-platform native MCP executable |
+| `pnpm probe` | One live TrustMRR API probe for headers/unit checks |
+| `pnpm pack:dry-run` | Show package contents before publishing |
+| `pnpm safety:check` | Enforce package manifest safety rules |
+
+## Data Conventions
+
+- Money fields are whole US dollars, not cents. `550024` means `$550,024`.
+- Revenue filters operate on `revenue.last30Days`.
+- Convert weekly revenue to a last-30-days filter with `dollars = weekly * (30 / 7)`.
+- MRR is separate from last-30-days revenue. One-time-payment products can have `mrr=0`.
+- `growth30d`, `growthMRR30d`, `minGrowth`, and `maxGrowth` are percentage numbers. Use `minGrowth=10` for `>10%`, not `0.1`.
+- TrustMRR is an opt-in dataset. Treat it as a curated showcase, not a representative sample of all startups.
+
+Every startup returned by the MCP tools includes a `derived` block with `weeklyRevenueUSD`, `monthlyRevenueUSD`, `totalRevenueUSD`, `mrrUSD`, and `askingPriceUSD`.
+
+## Local Files
+
+```text
+~/.trustmrr-cli/
+  config.json
+  mcp.json
+  conversations/
+    index.json
+    <timestamp>__<session-id>.jsonl
+```
+
+`config.json` and `mcp.json` are written with mode `0600` where the platform supports it. Conversation transcripts do not include the TrustMRR API key.
+
 ## License
 
-[MIT](LICENSE) © Josh Salway. Unofficial; not affiliated with TrustMRR. You are responsible for using the TrustMRR API in accordance with TrustMRR's own terms of service.
+[MIT](LICENSE). Unofficial; not affiliated with TrustMRR. You are responsible for using the TrustMRR API in accordance with TrustMRR's terms of service.

@@ -1,22 +1,35 @@
 {
-  "name": "trustmrr-cli",
+  "name": "@joshsalway/trustmrr-cli",
   "version": "0.1.0",
   "description": "Interactive REPL that asks natural-language questions about TrustMRR data via your Claude subscription",
   "type": "module",
+  "license": "MIT",
+  "author": "Josh Salway",
+  "homepage": "https://github.com/JoshSalway/trustmrr-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshSalway/trustmrr-cli.git",
+    "directory": "packages/cli"
+  },
+  "bugs": { "url": "https://github.com/JoshSalway/trustmrr-cli/issues" },
+  "publishConfig": { "access": "public" },
+  "keywords": ["trustmrr", "cli", "mcp", "claude", "startups", "revenue", "mrr", "saas"],
   "bin": {
     "trustmrr": "./dist/index.js"
   },
   "main": "./dist/index.js",
-  "files": ["dist", "system-prompt.md"],
+  "files": ["dist", "src", "system-prompt.md", "README.md", "tsconfig.json", "tsup.config.ts"],
   "scripts": {
     "build": "tsup",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsup",
+    "prepublishOnly": "npm run typecheck && npm run build"
   },
   "dependencies": {
     "commander": "^12.1.0",
-    "trustmrr-mcp": "workspace:*"
+    "@joshsalway/trustmrr-mcp": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

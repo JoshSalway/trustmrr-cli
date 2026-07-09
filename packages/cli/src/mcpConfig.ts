@@ -19,13 +19,13 @@ export const ALLOWED_TOOLS = [
 export function resolveMcpServerEntry(): string {
   // Prefer the package main (dist/index.js). Falls back to walking from the pkg dir.
   try {
-    const entry = require.resolve("trustmrr-mcp");
+    const entry = require.resolve("@joshsalway/trustmrr-mcp");
     if (existsSync(entry)) return entry;
   } catch {
     /* fall through to manual resolution */
   }
   try {
-    const pkgJson = require.resolve("trustmrr-mcp/package.json");
+    const pkgJson = require.resolve("@joshsalway/trustmrr-mcp/package.json");
     const candidate = join(dirname(pkgJson), "dist", "index.js");
     if (existsSync(candidate)) return candidate;
   } catch {
