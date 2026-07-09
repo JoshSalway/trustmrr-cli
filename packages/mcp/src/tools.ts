@@ -143,6 +143,27 @@ function errorResult(err: unknown) {
   };
 }
 
+function isStartupDetail(value: unknown): value is StartupDetail {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    typeof (value as { slug?: unknown }).slug === "string" &&
+    typeof (value as { name?: unknown }).name === "string"
+  );
+}
+
+function unwrapStartupDetail(res: { data?: StartupDetail | null } | StartupDetail): StartupDetail {
+  const maybeStartup = res && typeof res === "object" && "data" in res ? res.data : res;
+  if (!isStartupDetail(maybeStartup)) {
+    throw new TrustMrrError(
+      502,
+      "TrustMRR returned an unexpected startup detail response shape.",
+      res,
+    );
+  }
+  return maybeStartup;
+}
+
 export function registerTools(server: McpServer, client: TrustMrrClient): void {
   server.registerTool(
     "search_startups",
@@ -185,14 +206,10 @@ export function registerTools(server: McpServer, client: TrustMrrClient): void {
       try {
         // The detail endpoint wraps the startup under a `data` key
         // ({ data: {...} }), unlike list rows which are bare. Unwrap before enriching.
-        const res = await client.get<{ data?: StartupDetail } | StartupDetail>(
+        const res = await client.get<{ data?: StartupDetail | null } | StartupDetail>(
           `/startups/${encodeURIComponent(slug)}`,
         );
-        const startup =
-          res && typeof res === "object" && "data" in res && res.data
-            ? (res.data as StartupDetail)
-            : (res as StartupDetail);
-        return jsonResult(enrich(startup));
+        return jsonResult(enrich(unwrapStartupDetail(res)));
       } catch (err) {
         return errorResult(err);
       }

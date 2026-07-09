@@ -1,6 +1,7 @@
 import { RateLimiter } from "./rateLimiter.js";
 
 const DEFAULT_BASE_URL = "https://trustmrr.com/api/v1";
+const DEFAULT_BASE_HOST = new URL(DEFAULT_BASE_URL).host;
 
 export class TrustMrrError extends Error {
   constructor(
@@ -70,6 +71,21 @@ export class TrustMrrClient {
     baseUrl: string = process.env.TRUSTMRR_BASE_URL || DEFAULT_BASE_URL,
   ) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
+    const envOverride = process.env.TRUSTMRR_BASE_URL?.trim();
+    if (envOverride) {
+      try {
+        const host = new URL(this.baseUrl).host;
+        if (host !== DEFAULT_BASE_HOST) {
+          process.stderr.write(
+            `trustmrr-mcp: warning: TRUSTMRR_BASE_URL override is active (${host}); the TrustMRR API key will be sent to that host.\n`,
+          );
+        }
+      } catch {
+        process.stderr.write(
+          "trustmrr-mcp: warning: TRUSTMRR_BASE_URL is not a valid URL; requests will fail until it is fixed.\n",
+        );
+      }
+    }
   }
 
   async get<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {

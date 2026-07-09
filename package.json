@@ -11,20 +11,25 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "dev": "pnpm --filter trustmrr-cli dev",
-    "cli": "pnpm --filter trustmrr-cli start",
-    "mcp": "pnpm --filter trustmrr-mcp start",
-    "probe": "pnpm --filter trustmrr-mcp probe",
+    "test": "pnpm -r test",
+    "binary:mcp": "node scripts/build-mcp-binary.mjs",
+    "safety:check": "node scripts/check-package-safety.mjs",
+    "audit": "pnpm audit --audit-level low",
+    "pack:dry-run": "pnpm --filter @joshsalway/trustmrr-mcp pack --dry-run && pnpm --filter @joshsalway/trustmrr-cli pack --dry-run",
+    "verify": "pnpm build && pnpm typecheck && pnpm test && pnpm lint && pnpm safety:check && pnpm audit && pnpm pack:dry-run",
+    "dev": "pnpm --filter @joshsalway/trustmrr-cli dev",
+    "cli": "pnpm --filter @joshsalway/trustmrr-cli start",
+    "mcp": "pnpm --filter @joshsalway/trustmrr-mcp start",
+    "probe": "pnpm --filter @joshsalway/trustmrr-mcp probe",
     "lint": "biome check .",
     "format": "biome format --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "esbuild": "^0.28.1",
+    "postject": "1.0.0-alpha.6",
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@biomejs/biome"]
   }
 }

@@ -1,44 +1,161 @@
-# trustmrr-mcp
+# @joshsalway/trustmrr-mcp
 
-> **Unofficial.** Independent, community-built MCP server. Not affiliated with, endorsed by, or operated by TrustMRR. It calls the public TrustMRR REST API with **your own** API key. TrustMRR publishes its own official server (`trustmrr-mcp` on npm / [`AiToolsforStartups/trustmrr-mcp`](https://github.com/AiToolsforStartups/trustmrr-mcp)).
+> **Unofficial.** Independent, community-built MCP server for TrustMRR data. Not affiliated with, endorsed by, or operated by TrustMRR. The official unscoped package is `trustmrr-mcp`; this package uses a scoped name to avoid confusion.
 
-A standalone stdio [MCP](https://modelcontextprotocol.io) server wrapping the [TrustMRR](https://trustmrr.com) verified-revenue REST API. Part of the [trustmrr-cli](https://github.com/JoshSalway/trustmrr-cli) monorepo.
+Local stdio [MCP](https://modelcontextprotocol.io) server for the TrustMRR REST API. It can be used directly by MCP clients or as the tool server behind `@joshsalway/trustmrr-cli`.
+
+## Install
+
+```bash
+npm install -g @joshsalway/trustmrr-mcp
+```
+
+Requires a TrustMRR API key that starts with `tmrr_`.
+
+## MCP Config
+
+```json
+{
+  "mcpServers": {
+    "trustmrr": {
+      "command": "trustmrr-mcp",
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
+    }
+  }
+}
+```
+
+The server can also read the key from `~/.trustmrr-cli/config.json`, which is created by the CLI.
 
 ## Tools
 
 | Tool | Description |
 |---|---|
-| `search_startups` | List + filter + sort + paginate startups (`GET /startups`). |
-| `get_startup` | Full detail for one startup by slug (tech stack, cofounders, untruncated description). |
-| `find_all_matching` | Auto-paginate a filter until exhausted or a `maxResults` cap. |
+| `search_startups` | List, filter, sort, and paginate startups. |
+| `get_startup` | Fetch full detail for one startup by slug. |
+| `find_all_matching` | Auto-paginate a filter until exhausted or `maxResults` is reached. |
 
-Every result is enriched with a `derived` block: `weeklyRevenueUSD`, `monthlyRevenueUSD`, `totalRevenueUSD`, `mrrUSD`, `askingPriceUSD`.
+Every result includes a `derived` block with `weeklyRevenueUSD`, `monthlyRevenueUSD`, `totalRevenueUSD`, `mrrUSD`, and `askingPriceUSD`.
 
-## Conventions (important)
+## Data Conventions
 
-- **All money is in WHOLE US DOLLARS, not cents.** `last30Days=550024` means $550,024 (verified against trustmrr.com).
-- **Revenue filters operate on the LAST-30-DAYS figure.** Convert a weekly figure with `dollars = $/week * (30/7)` (e.g. $1,000/wk → `minRevenue=4286`).
-- **MRR is a separate axis** (`minMrr`/`maxMrr`); one-time-payment products have `mrr=0`.
-- **`growth30d` and `minGrowth`/`maxGrowth` are percentage numbers** (`24` = +24%, not `0.24`).
+- Money values are whole US dollars, not cents.
+- Revenue filters operate on `revenue.last30Days`.
+- Convert weekly revenue to last-30-days revenue with `dollars = weekly * (30 / 7)`.
+- MRR is separate from last-30-days revenue.
+- Growth values and growth filters are percentage numbers. Use `10` for `+10%`, not `0.1`.
 
-## Usage
+## Open and Auditable
 
-Requires `TRUSTMRR_API_KEY` (a key starting with `tmrr_`) in the environment; it also falls back to `~/.trustmrr-cli/config.json`. The key is never logged.
+This package is designed to be inspectable before you trust it with an API key:
+
+- local stdio transport by default
+- no hosted proxy between your MCP client and TrustMRR
+- diagnostics go to stderr, never stdout
+- TypeScript `src/` and offline integration tests are included in the npm package
+- tests run against a mocked TrustMRR API and do not require a real key
+
+Inspect the package:
+
+```bash
+npm pack --dry-run @joshsalway/trustmrr-mcp
+npm pack @joshsalway/trustmrr-mcp
+tar -tf joshsalway-trustmrr-mcp-*.tgz
+```
+
+## Native Binary
+
+Users can run this MCP server from a single downloaded executable instead of installing Node/npm.
+
+Download options:
+
+- GitHub Release assets, once published.
+- Manual **Build MCP Binaries** GitHub Actions workflow artifacts.
+
+Expected artifact names:
+
+```text
+trustmrr-mcp-darwin-arm64
+trustmrr-mcp-darwin-x64
+trustmrr-mcp-linux-x64
+trustmrr-mcp-win32-x64.exe
+SHA256SUMS.txt
+```
+
+On macOS/Linux:
+
+```bash
+chmod +x trustmrr-mcp-darwin-arm64
+```
+
+MCP config:
+
+```json
+{
+  "mcpServers": {
+    "trustmrr": {
+      "command": "/absolute/path/to/trustmrr-mcp-darwin-arm64",
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
+    }
+  }
+}
+```
+
+Measured locally on macOS arm64:
+
+```text
+Binary size:   51 MB
+Idle memory:   ~54 MB RSS
+Idle CPU:      0.0%
+```
+
+Actual memory varies by OS and architecture. The binary bundles Node, so it is larger than the npm package but does not require Node to be installed on the target machine.
+
+Build a current-platform binary locally:
+
+```bash
+pnpm install
+pnpm binary:mcp
+```
+
+Output:
+
+```text
+packages/mcp/dist-bin/trustmrr-mcp-<platform>-<arch>
+```
+
+## Source Checkout
+
+```bash
+pnpm install
+pnpm build
+pnpm --filter @joshsalway/trustmrr-mcp test
+```
+
+Point an MCP client at the built entry:
 
 ```json
 {
   "mcpServers": {
     "trustmrr": {
       "command": "node",
-      "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
-      "env": { "TRUSTMRR_API_KEY": "tmrr_YOURKEY" }
+      "args": ["/absolute/path/to/trustmrr-cli/packages/mcp/dist/index.js"],
+      "env": {
+        "TRUSTMRR_API_KEY": "tmrr_YOURKEY"
+      }
     }
   }
 }
 ```
 
-Rate-limited to stay under the API's 20 req/min (token bucket + `429` backoff via the rate-limit reset header).
+## Development Override
+
+`TRUSTMRR_BASE_URL` can override the API base URL for tests and local development. Do not set it in normal use. If it points to a host other than `trustmrr.com`, the server warns on stderr because the TrustMRR API key will be sent to that host.
 
 ## License
 
-[MIT](../../LICENSE) © Josh Salway.
+[MIT](../../LICENSE). Unofficial; not affiliated with TrustMRR.

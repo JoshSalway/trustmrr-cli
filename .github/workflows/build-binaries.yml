@@ -1,0 +1,58 @@
+name: Build MCP Binaries
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify source
+        run: pnpm verify
+
+      - name: Build MCP binary
+        run: pnpm binary:mcp
+
+      - name: Write checksums
+        shell: node {0}
+        run: |
+          const { createHash } = require("node:crypto");
+          const { readdirSync, readFileSync, writeFileSync } = require("node:fs");
+          const { join } = require("node:path");
+          const dir = "packages/mcp/dist-bin";
+          const lines = readdirSync(dir)
+            .filter((name) => name.startsWith("trustmrr-mcp-"))
+            .map((name) => `${createHash("sha256").update(readFileSync(join(dir, name))).digest("hex")}  ${name}`);
+          writeFileSync(join(dir, "SHA256SUMS.txt"), `${lines.join("\n")}\n`);
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trustmrr-mcp-${{ runner.os }}-${{ runner.arch }}
+          path: packages/mcp/dist-bin/*
